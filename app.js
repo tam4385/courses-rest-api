@@ -3,9 +3,8 @@
 // load modules
 const express = require('express');
 const morgan = require('morgan');
-const Sequelize = require('sequelize');
-const db = require('./db');
-const { User, Course } = db.models;
+const { sequelize } = require('./models');
+const routes = require('./routes');
 
 // variable to enable global error logging
 const enableGlobalErrorLogging = process.env.ENABLE_GLOBAL_ERROR_LOGGING === 'true';
@@ -13,48 +12,20 @@ const enableGlobalErrorLogging = process.env.ENABLE_GLOBAL_ERROR_LOGGING === 'tr
 // create the Express app
 const app = express();
 
+app.use(express.json());
 // setup morgan which gives us http request logging
 app.use(morgan('dev'));
 
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: 'fsjstd-restapi.db'
-});
-
-let johnDoe;
-
-// Async IIFE to test connection
 (async () => {
   try {
-    await sequelize.authenticate();
-    await db.sequelize.sync({ force: true })
-    console.log('Connection to the database successful!');
-
-    // Testing association by adding a user
-    const userInstance = await User.create({
-      firstName: 'john',
-      lastName: 'doe',
-      emailAddress: '111 main street',
-      password: 'password',
-      userId: 1,
-    });
-    console.log(JSON.stringify(userInstance, null, 2));
-    // Test Course instance
-    const courseInstance = await Course.create({
-      title: 'JS Basics',
-      description: 'a course that teaches stuff thats good',
-      userId: 1
-
-    });
-    console.log(JSON.stringify(courseInstance, null, 2))
-
+    sequelize.sync();
   } catch (error) {
-    console.error('Error connecting to the database: ', error);
+    console.log('An error has occured syncing to the database: ' + error)
   }
 })();
 
 // TODO setup your api routes here
-
+app.use('/api', routes);
 // setup a friendly greeting for the root route
 app.get('/', (req, res) => {
   res.json({
