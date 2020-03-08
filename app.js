@@ -19,6 +19,7 @@ app.use(morgan('dev'));
 (async () => {
   try {
     sequelize.sync();
+    console.log('Connection to the database successful');
   } catch (error) {
     console.log('An error has occured syncing to the database: ' + error)
   }

@@ -93,9 +93,7 @@ router.post('/users', [
 
             await User.create(user);
 
-            res.status(201).end();
-
-            res.redirect('/');
+            res.status(201).end().location('/').end();
         }
     } catch (error) {
         if (error = 'SequelizeUniqueConstraintError') {
@@ -111,34 +109,71 @@ router.post('/users', [
 
 // get all courses
 router.get('/courses', async (req, res) => {
-    const courses = await Course.findAll();
+    const courses = await Course.findAll({
+        // match with assiciation using the specified 'creator' keyword
+        include: [{
+            model: User,
+            as: 'creator',
+        }]
+    });
     res.json(courses);
 });
 
 // get single course 
 router.get('/courses/:id', async (req, res) => {
-    const course = await Course.findByPk(req.params.id);
+    const course = await Course.findByPk(req.params.id, {
+        include: [{
+            model: User,
+            as: 'creator',
+        }]
+    });
     res.json(course);
 });
+
+// Validation for post and put course routes stored in variable courseChecks
+const courseChecks = [
+    check('title')
+        .exists()
+        .withMessage('Please supply a "title" value'),
+    check('description')
+        .exists()
+        .withMessage('Please supply a "description" value')
+];
+
 // POST's a single course
-router.post('/courses', authenticateUser, async (req, res) => {
+router.post('/courses', courseChecks, authenticateUser, async (req, res) => {
     try {
-        const course = await Course.create(req.body);
-        res.status(201)
-            .json(course);
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            const errorMessages = errors.array().map(error => error.msg);
+            res.status(400).json({ errors: errorMessages });
+        } else {
+            const course = await Course.create(req.body);
+            res.status(201)
+                .json(course)
+                .location(`/courses/${course.id}`)
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 // PUT route to update a course
-router.put('/courses/:id', authenticateUser, async (req, res) => {
+router.put('/courses/:id', courseChecks, authenticateUser, async (req, res) => {
     try {
-        const course = await Course.findByPk(req.params.id);
-        if (course) {
-            await course.update(req.body)
-            res.status(204).end();
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            const errorMessages = errors.array().map(error => error.msg);
+            res.status(400).json({ errors: errorMessages });
         } else {
-            res.status(404).json({ message: "Course not found" });
+            const course = await Course.findByPk(req.params.id);
+            if (course) {
+                await course.update(req.body)
+                res.status(204).end();
+            } else {
+                res.status(404).json({ message: "Course not found" });
+            }
         }
     } catch (error) {
         res.status(500).json({ message: error.message });
